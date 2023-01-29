@@ -99,42 +99,30 @@ def requests_get(*args, **kwargs):
 
 
 @parameterized_class(
-    ('org_payload', 'repos_payload', 'expected_repos', 'apache2_repos'),
-    [(TEST_PAYLOAD[0][0], TEST_PAYLOAD[0][1], TEST_PAYLOAD[0][2],
-      TEST_PAYLOAD[0][3])]
+    [
+        {'org_payload': TEST_PAYLOAD[0][0]},
+        {'repo_payload': TEST_PAYLOAD[0][1]},
+        {'expected_repos': TEST_PAYLOAD[0][2]},
+        {'apache2_repos': TEST_PAYLOAD[0][3]}
+    ]
 )
 class TestIntegrationGithubOrgClient(unittest.TestCase):
-    """
-    Integration test for the GithubOrgClient.public_repos method
-    """
-    @classmethod
-    def setUpClass(cls):
-        """
-        Set up function for TestIntegrationGithubOrgClient class
-        Sets up a patcher to be used in the class methods
-        """
-        cls.get_patcher = patch('utils.requests.get', side_effect=requests_get)
-        cls.get_patcher.start()
-        cls.client = GithubOrgClient('google')
+    """Integration test: fixtures"""
+    @patch("requests.get")
+    def setUpClass(self, mock_get_request) -> None:
+        """Set up the class."""
+        mock_get_request.return_value = [
+            self.org_payload, self.repo_payload,
+            self.expected_repos, self.apache2_repos
+        ]
+        self.get_patcher = mock_get_request
+        self.get_patcher.side_effect = self.get_side_effect
+        self.mock_get = self.get_patcher.start()
 
-    @classmethod
-    def tearDownClass(cls):
-        """
-        Tear down resources set up for class tests.
-        Stops the patcher that had been started
-        """
-        cls.get_patcher.stop()
+    def side_effect(self):
+        """Return the side effect."""
+        return self.mock_get()
 
-    def test_public_repos(self):
-        """
-        Test public_repos method without license
-        """
-        self.assertEqual(self.client.public_repos(), self.expected_repos)
-
-    def test_public_repos_with_license(self):
-        """
-        Test public_repos method with license
-        """
-        self.assertEqual(
-            self.client.public_repos(license="apache-2.0"),
-            self.apache2_repos)
+    def tearDown(self) -> None:
+        """Tear down the test."""
+        self.get_patcher.stop()
